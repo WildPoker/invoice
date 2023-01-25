@@ -1,70 +1,69 @@
 import React from 'react'
 import AppBar from '@material-ui/core/AppBar'
 import CssBaseline from '@material-ui/core/CssBaseline'
-import Divider from '@material-ui/core/Divider'
-import Drawer from '@material-ui/core/Drawer'
-import Hidden from '@material-ui/core/Hidden'
-import IconButton from '@material-ui/core/IconButton'
-import { LineStyle } from '@material-ui/icons'
-import List from '@material-ui/core/List'
-import ListItem from '@material-ui/core/ListItem'
-import ListItemIcon from '@material-ui/core/ListItemIcon'
-import ListItemText from '@material-ui/core/ListItemText'
-import MailIcon from '@material-ui/icons/Mail'
-import MenuIcon from '@material-ui/icons/Menu'
 import Toolbar from '@material-ui/core/Toolbar'
 import Typography from '@material-ui/core/Typography'
 import { makeStyles, useTheme } from '@material-ui/core/styles'
-import { Button } from '@material-ui/core'
+import { Button, Fab, useScrollTrigger, Zoom } from '@material-ui/core'
+import Card from '@material-ui/core/Card'
+import CardContent from '@material-ui/core/CardContent'
 import { useHistory } from 'react-router'
 import axios from 'axios'
 import { useEffect } from 'react'
+import AddIcon from '@material-ui/icons/Add'
+import Input from '@material-ui/core/Input'
+import MuiAlert from '@material-ui/lab/Alert'
 
-const drawerWidth = 240
-
-const useStyles = makeStyles(theme => ({
+const useStyles = makeStyles((theme) => ({
   root: {
-    display: 'flex'
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100vh',
   },
   drawer: {
     [theme.breakpoints.up('sm')]: {
-      width: drawerWidth,
-      flexShrink: 0
-    }
+      width: 0,
+      flexShrink: 0,
+    },
   },
   appBar: {
     [theme.breakpoints.up('sm')]: {
-      width: `calc(100% - ${drawerWidth}px)`,
-      marginLeft: drawerWidth
-    }
+      width: `calc(100% - ${0}px)`,
+    },
   },
   menuButton: {
     marginRight: theme.spacing(2),
     [theme.breakpoints.up('sm')]: {
-      display: 'none'
-    }
+      display: 'none',
+    },
   },
   // necessary for content to be below app bar
   toolbar: theme.mixins.toolbar,
   drawerPaper: {
-    width: drawerWidth
+    width: 0,
   },
   content: {
     flexGrow: 1,
-    padding: theme.spacing(3)
-  }
+    padding: theme.spacing(3),
+  },
+  extendedIcon: {
+    margin: '0 1rem 1rem auto',
+  },
 }))
+
+function Alert(props) {
+  return <MuiAlert elevation={6} variant="filled" {...props} />
+}
 
 function Dashboard(props) {
   const { window } = props
   const classes = useStyles()
-  const theme = useTheme()
-  const [mobileOpen, setMobileOpen] = React.useState(false)
   const [products, setProducts] = React.useState([])
-
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen)
-  }
+  const [quantity, setQuantity] = React.useState()
+  const [selected, setSelected] = React.useState()
+  const [selectedProduct, setSelectedProduct] = React.useState([])
+  const [invoice, setInvoice] = React.useState([])
+  const [tab, setTab] = React.useState(false)
 
   const handleProducts = async () => {
     try {
@@ -72,47 +71,87 @@ function Dashboard(props) {
       const response = await axios({
         method: 'get',
         url: 'https://6bba-180-191-67-246.ap.ngrok.io/app/product',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       })
       setProducts(response.data.products)
     } catch (error) {
       error.response.status === 400 && alert('Error')
     }
   }
+
+  //function for adding products
+  const handleAddProduct = async (item) => {
+    try {
+      const token = localStorage.getItem('myToken')
+      const response = await axios({
+        method: 'post',
+        url: 'https://6bba-180-191-67-246.ap.ngrok.io/app/product_acquisition',
+        headers: { Authorization: `Bearer ${token}` },
+        data: {
+          product_id: item._id,
+          quantity: quantity,
+        },
+      })
+      setSelectedProduct([
+        ...selectedProduct,
+        response.data.populated_product_acquisition,
+      ])
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  // console.log(selectedProduct)
+
+  const handleAddInvoice = async (item) => {
+    try {
+      const token = localStorage.getItem('myToken')
+      const response = await axios({
+        method: 'post',
+        url: 'https://6bba-180-191-67-246.ap.ngrok.io/app/invoice',
+        headers: { Authorization: `Bearer ${token}` },
+        data: {
+          products_acquisition: selectedProduct.map((item) => item._id),
+        },
+      })
+      handleGetInvoice()
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  const handleGetInvoice = async () => {
+    try {
+      const token = localStorage.getItem('myToken')
+      const response = await axios({
+        method: 'get',
+        url: 'https://6bba-180-191-67-246.ap.ngrok.io/app/invoice',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setInvoice(response.data.invoices)
+    } catch (error) {
+      error.response.status === 400 && alert('Error')
+    }
+  }
+
   useEffect(() => {
     handleProducts()
+    handleGetInvoice()
   }, [])
+
   const history = useHistory()
 
-  const drawer = (
-    <div>
-      <div />
-      <Typography variant='h6' style={{ textAlign: 'center', margin: '1rem 0' }}>
-        INVOICE
-      </Typography>
-      <Divider />
-      <List>
-        {['Dashboard', 'Projects', 'Gallery', 'Reports', 'About'].map((text, index) => (
-          <ListItem button key={text}>
-            <ListItemIcon>{index % 2 === 0 ? <LineStyle /> : <MailIcon />}</ListItemIcon>
-            <ListItemText primary={text} />
-          </ListItem>
-        ))}
-      </List>
-    </div>
-  )
+  const container =
+    window !== undefined ? () => window().document.body : undefined
 
-  const container = window !== undefined ? () => window().document.body : undefined
+  console.log(invoice[0])
 
   return (
     <div className={classes.root}>
       <CssBaseline />
-      <AppBar position='fixed' className={classes.appBar}>
+      <AppBar position="fixed" className={classes.appBar}>
         <Toolbar>
-          <IconButton color='inherit' aria-label='open drawer' edge='start' onClick={handleDrawerToggle} className={classes.menuButton}>
-            <MenuIcon />
-          </IconButton>
-          <Typography variant='h6' noWrap>
+          <Typography variant="h6" noWrap>
             Dashboard
           </Typography>
           <Button
@@ -120,59 +159,161 @@ function Dashboard(props) {
             onClick={() => {
               localStorage.removeItem('myToken')
               history.push('./')
-            }}>
+            }}
+          >
             Logout
           </Button>
         </Toolbar>
       </AppBar>
-      <nav className={classes.drawer} aria-label='mailbox folders'>
-        {/* The implementation can be swapped with js to avoid SEO duplication of links. */}
-        <Hidden smUp implementation='css'>
-          <Drawer
-            container={container}
-            variant='temporary'
-            anchor={theme.direction === 'rtl' ? 'right' : 'left'}
-            open={mobileOpen}
-            onClose={handleDrawerToggle}
-            classes={{
-              paper: classes.drawerPaper
-            }}
-            ModalProps={{
-              keepMounted: true // Better open performance on mobile.
-            }}>
-            {drawer}
-          </Drawer>
-        </Hidden>
-        <Hidden xsDown implementation='css'>
-          <Drawer
-            classes={{
-              paper: classes.drawerPaper
-            }}
-            variant='permanent'
-            open>
-            {drawer}
-          </Drawer>
-        </Hidden>
-      </nav>
+
       <main className={classes.content}>
         <div className={classes.toolbar} />
-        <Typography paragraph>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Rhoncus dolor purus non
-          enim praesent elementum facilisis leo vel. Risus at ultrices mi tempus imperdiet. Semper risus in hendrerit gravida rutrum quisque non tellus.
-          Convallis convallis tellus id interdum velit laoreet id donec ultrices. Odio morbi quis commodo odio aenean sed adipiscing. Amet nisl suscipit
-          adipiscing bibendum est ultricies integer quis. Cursus euismod quis viverra nibh cras. Metus vulputate eu scelerisque felis imperdiet proin fermentum
-          leo. Mauris commodo quis imperdiet massa tincidunt. Cras tincidunt lobortis feugiat vivamus at augue. At augue eget arcu dictum varius duis at
-          consectetur lorem. Velit sed ullamcorper morbi tincidunt. Lorem donec massa sapien faucibus et molestie ac.
-        </Typography>
-        <Typography paragraph>
-          Consequat mauris nunc congue nisi vitae suscipit. Fringilla est ullamcorper eget nulla facilisi etiam dignissim diam. Pulvinar elementum integer enim
-          neque volutpat ac tincidunt. Ornare suspendisse sed nisi lacus sed viverra tellus. Purus sit amet volutpat consequat mauris. Elementum eu facilisis
-          sed odio morbi. Euismod lacinia at quis risus sed vulputate odio. Morbi tincidunt ornare massa eget egestas purus viverra accumsan in. In hendrerit
-          gravida rutrum quisque non tellus orci ac. Pellentesque nec nam aliquam sem et tortor. Habitant morbi tristique senectus et. Adipiscing elit duis
-          tristique sollicitudin nibh sit. Ornare aenean euismod elementum nisi quis eleifend. Commodo viverra maecenas accumsan lacus vel facilisis. Nulla
-          posuere sollicitudin aliquam ultrices sagittis orci a.
-        </Typography>
+        <Button onClick={() => setTab(false)} variant="default">
+          Products
+        </Button>
+        <Button onClick={() => setTab(true)} variant="default">
+          Invoice
+        </Button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+          {tab
+            ? invoice?.map((item) => (
+                <div style={{ flex: '1 1 300px' }}>
+                  <Card sx={{ minWidth: 275 }}>
+                    <CardContent>
+                      <Typography
+                        sx={{ fontSize: 14 }}
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        <p>Invoice Number: {item.invoice_number}</p>
+                      </Typography>
+                      <Typography
+                        sx={{ fontSize: 14 }}
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        <p>Customer: {item.invoice_user.name}</p>
+                      </Typography>
+                      <Typography
+                        sx={{ fontSize: 14 }}
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        <p>Products:</p>
+                        {item.products_acquisition?.map((data) => (
+                          <div style={{ marginLeft: '1rem' }}>
+                            <p>Name: {data.product?.name}</p>
+                            <p>Quantity: {data.quantity}</p>
+                            <p>Sub total: {data.price}</p>
+                            <hr />
+                          </div>
+                        ))}
+                      </Typography>
+                      <hr />
+                      <Typography
+                        sx={{ fontSize: 14 }}
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        <p>Total Amount: PHP {item.total_amount}</p>
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </div>
+              ))
+            : products.map((item) => (
+                <div style={{ flex: '1 1 300px' }}>
+                  <Card sx={{ minWidth: 275 }}>
+                    <CardContent>
+                      <Typography
+                        sx={{ fontSize: 14 }}
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        <p>Name: {item.name}</p>
+                      </Typography>
+                      <Typography
+                        sx={{ fontSize: 14 }}
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        <p>Quantity: {item.quantity}</p>
+                      </Typography>
+                      <Typography
+                        sx={{ fontSize: 14 }}
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        <p>Price: PHP {item.price}</p>
+                      </Typography>
+                    </CardContent>
+                    {selected === item._id ? (
+                      <Alert severity="success">
+                        This is a success message!
+                      </Alert>
+                    ) : (
+                      <div
+                        style={{
+                          display: 'flex',
+                          margin: '1rem',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Input
+                          type="number"
+                          style={{ flex: '1 1 70%' }}
+                          placeholder="Quantity to add in Invoice"
+                          onChange={(e) =>
+                            setQuantity(parseInt(e.target.value))
+                          }
+                        />
+                        <Button
+                          onClick={() => {
+                            handleAddProduct(item)
+                            setSelected(item._id)
+                          }}
+                          style={{ padding: '0 1rem' }}
+                          variant="default"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    )}
+                  </Card>
+                </div>
+              ))}
+        </div>
       </main>
+      <div
+        style={{
+          margin: '2rem',
+          display: 'flex',
+          justifyContent: 'flex-start',
+          flexWrap: 'wrap',
+          gap: '2rem',
+        }}
+      >
+        {selectedProduct &&
+          selectedProduct.map((item) => (
+            <Card style={{ width: '50%' }}>
+              <CardContent style={{ display: 'flex', gap: '1rem' }}>
+                <Typography>Name: {item.product.name}</Typography>
+                <Typography>Quantity: {item.quantity}</Typography>
+                <Typography>Subtotal Price: {item.price}</Typography>
+              </CardContent>
+            </Card>
+          ))}
+      </div>
+
+      <Fab
+        className={classes.extendedIcon}
+        color="secondary"
+        aria-label="scroll back to top"
+        variant="extended"
+        onClick={() => handleAddInvoice()}
+      >
+        <AddIcon /> Invoice
+      </Fab>
     </div>
   )
 }
